@@ -1,0 +1,29 @@
+{
+  "name": "optimal_rectangle_packing_js",
+  "version": "1.0.0",
+  "description": "Optimal Rectangle Packing library for javascript",
+  "main": "optimal_rectangle_packing.js",
+  "dependencies": {
+    "jsdom": "^9.9.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eyal0/optimal_rectangle_packing_js.git"
+  },
+  "keywords": [
+    "optimal",
+    "rectangle",
+    "packing",
+    "nodejs"
+  ],
+  "author": "eyal0",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eyal0/optimal_rectangle_packing_js/issues"
+  },
+  "homepage": "https://github.com/eyal0/optimal_rectangle_packing_js#readme"
+}
