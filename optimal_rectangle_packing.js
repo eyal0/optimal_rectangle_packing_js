@@ -196,8 +196,7 @@ var ORP = {
     var current_height = sorted_rectangles[0].height;
     var empty = {name:"."};
     var boundary = {name:"X"};
-    var area = new ORP.Area(empty);  // -1 indicates empty
-    // -2 means that it's the boundary of the enclosing box
+    var area = new ORP.Area(empty);
     area.set_rectangle(0, current_height, -1, -1, boundary);
     for (var i = 0; i < sorted_rectangles.length; i++) {
       var rectangle = sorted_rectangles[i];
@@ -211,14 +210,15 @@ var ORP = {
         return true;
       });
     }
-    console.log(area.grid_to_string(10,10,"  ", function(x) { return x.name; }));
   }
 }
 var x = new ORP.Area(0);
+var rectangles = [];
+for (var i = 1; i < 10; i++) {
+  rectangles.push({name:i, height:i, width:i});
+}
 while(1) {
-  ORP.pack([{name:1, height:1, width:1},
-            {name:2, height:2, width:2},
-           ]);
+  ORP.pack(rectangles);
 }
 /*  x.set_rectangle(0,3,1,4,7);
     x.set_rectangle(0,3,1,5,9);
