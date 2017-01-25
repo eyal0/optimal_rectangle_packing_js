@@ -88,10 +88,11 @@ var ORP = {
       }
     }
 
-    // Returns the value in the part of the area specified.  If
-    // there is more than one value or the rectange has zero area,
-    // returns null.
-    self.get_rectangle = function(x, y, width, height) {
+    // Returns the values in the part of the area specified as an
+    // object with keys.  The keys in the return value are the output
+    // of key_fn on each rectangle.  key_fn should return a string.
+    self.get_rectangle = function(x, y, width, height,
+                                  key_fn = function(r) { return String(r); }) {
       if (!width || !height) {
         return null;
       }
@@ -112,15 +113,13 @@ var ORP = {
       if (y_end < 0) {
         y_end = -y_end-1;
       }
-      var value = contents[x_start][y_start];
+      var values = {};
       for (var x_index = x_start; x_index < x_end; x_index++) {
         for (var y_index = y_start; y_index < y_end; y_index++) {
-          if (contents[x_index][y_index] != value) {
-            return null;
-          }
+          values[key_fn(contents[x_index][y_index])] = true;
         }
       }
-      return value;
+      return values;
     }
 
     self.cuts_to_string = function() {
@@ -186,36 +185,69 @@ var ORP = {
    * map from input rectangle to location of top-left corner in an
    * optimal enclosing rectangle. */
   pack: function(rectangles) {
-    var EMPTY = {name:"."};
-    var BOUNDARY = {name:"X"};
+    var EMPTY = {name:"."};  // name must not be a number, will conflict
+    var BOUNDARY = {name:"X"};  // name must not be a number, will conflict
 
     // Inserts all rectangles into an Area of given height from
     // biggest to smallest.  Each rectangle is inserted at minimum x
     // possible without crossing the height.  If there are multiple
     // spots that are at minimum x, choose the one with minimum y.
-    // Returns the new Area.
-    var insert_all_rectangles = function(rectangles, height) {
+    // Returns the new Area.  We also keep track of the minimum height
+    // change that might make a difference in the packing.  That's
+    // based on the height of the overlap of each attempt to place
+    // with the lower boundary.
+    //
+    // Returns an object with area, placements, min_delta_height.
+    // placements is a map from name to {x,y} object.
+    // min_delta_height is the minimum height to add to the boundary
+    // to make a difference.
+    var insert_all_rectangles = function(rectangles, boundary_height) {
+      var area = new ORP.Area(EMPTY);
       if (rectangles.length == 0) {
-        return new ORP.Area();
+        return area;
       }
       var sorted_rectangles = rectangles.slice(0)
           .sort(function (r1,r2) {
             return -(r1.height-r2.height);
           });
-      var area = new ORP.Area(EMPTY);
-      area.set_rectangle(0, height, -1, -1, BOUNDARY);
+      area.set_rectangle(0, boundary_height, -1, -1, BOUNDARY);
       for (var i = 0; i < sorted_rectangles.length; i++) {
         var rectangle = sorted_rectangles[i];
         var width = rectangle.width;
         var height = rectangle.height;
+        var placements = {};
+        var min_delta_height;
         area.traverse(function (x, y) {
-          if (area.get_rectangle(x, y, width, height) == EMPTY) {
+          var values_under_rectangle = area.get_rectangle(
+            x, y, width, height, function (r) { return r.name; });
+          var all_empty = Object.keys(values_under_rectangle).length == 1 &&
+              values_under_rectangle.hasOwnProperty(EMPTY.name);
+          if (all_empty) {
             area.set_rectangle(x, y, width, height, rectangle);
+            placements[rectangle.name] = {"x": x, "y": y};
             return true;  // End the traverse.
+          } else {
+            // Would we have plcaed this rectangle if it weren't for
+            // the boundary?  That means we only overlapped
+            // BOUNDARY and possibly also EMPTY, but nothing else.
+            var no_rectangles_overlapped =
+                Object.keys(values_under_rectangle).length <= 2 &&
+                values_under_rectangle.hasOwnProperty(BOUNDARY.name) &&
+                (Object.keys(values_under_rectangle).length == 1 ||
+                 values_under_rectangle.hasOwnProperty(EMPTY.name));
+            if (no_rectangles_overlapped) {
+              // What increase in height would we have needed to make
+              // this placement?
+              var delta_height = x + height - boundary_height;
+              min_delta_height = delta_height === undefined ?
+                delta_height : Math.min(min_delta_height, delta_height);
+            }
           }
         });
       }
-      return area;
+      return {"area": area,
+              "placements": placements,
+              "min_delta_height": min_delta_height};
     }
 
     // Find the first column in the provided area that doesn't have
@@ -252,7 +284,7 @@ var ORP = {
     for (var i = 0; i < rectangles.length; i++) {
       max_rectangle_height = Math.max(max_rectangle_height, rectangles[i].height);
     }
-    var area = insert_all_rectangles(rectangles, max_rectangle_height);
+    var area = insert_all_rectangles(rectangles, max_rectangle_height).area;
     console.log(area.grid_to_string(50,50,"  ", function(x) { return x.name; }));
     console.log("Empty column at " + find_first_empty_column(area));
   }
