@@ -186,29 +186,43 @@ var ORP = {
    * map from input rectangle to location of top-left corner in an
    * optimal enclosing rectangle. */
   pack: function(rectangles) {
-    if (rectangles.length == 0) {
-      return {};
-    }
-    var sorted_rectangles = rectangles.slice(0)
-        .sort(function (r1,r2) {
-          return -(r1.height-r2.height);
+    var EMPTY = {name:"."};
+    var BOUNDARY = {name:"X"};
+
+    // Inserts all rectangles into an Area of given height from
+    // biggest to smallest.  Each rectangle is inserted at minimum x
+    // possible without crossing the height.  If there are multiple
+    // spots that are at minimum x, choose the one with minimum y.
+    // Returns the new Area.
+    var insert_all_rectangles = function(rectangles, height) {
+      if (rectangles.length == 0) {
+        return new ORP.Area();
+      }
+      var sorted_rectangles = rectangles.slice(0)
+          .sort(function (r1,r2) {
+            return -(r1.height-r2.height);
+          });
+      var area = new ORP.Area(EMPTY);
+      area.set_rectangle(0, height, -1, -1, BOUNDARY);
+      for (var i = 0; i < sorted_rectangles.length; i++) {
+        var rectangle = sorted_rectangles[i];
+        var width = rectangle.width;
+        var height = rectangle.height;
+        area.traverse(function (x, y) {
+          if (area.get_rectangle(x, y, width, height) == EMPTY) {
+            area.set_rectangle(x, y, width, height, rectangle);
+            return true;  // End the traverse.
+          }
         });
-    var current_height = sorted_rectangles[0].height;
-    var empty = {name:"."};
-    var boundary = {name:"X"};
-    var area = new ORP.Area(empty);
-    area.set_rectangle(0, current_height, -1, -1, boundary);
-    for (var i = 0; i < sorted_rectangles.length; i++) {
-      var rectangle = sorted_rectangles[i];
-      var width = rectangle.width;
-      var height = rectangle.height;
-      area.traverse(function (x, y) {
-        if (area.get_rectangle(x, y, width, height) == empty) {
-          area.set_rectangle(x, y, width, height, rectangle);
-          return true;  // End the traverse.
-        }
-      });
+      }
+      return area;
     }
+
+    var max_rectangle_height = 0;
+    for (var i = 0; i < rectangles.length; i++) {
+      max_rectangle_height = Math.max(max_rectangle_height, rectangles[i].height);
+    }
+    var area = insert_all_rectangles(rectangles, max_rectangle_height);
     // The current width is the first column that has no rectangles
     // in it.
     var current_x = null;
@@ -224,7 +238,7 @@ var ORP = {
         }
         is_column_empty = true;  // Assume that we're empty.
       }
-      if (value != empty && value != boundary) {
+      if (value != EMPTY && value != BOUNDARY) {
         is_column_empty = false;  //We found a rectangle in this column.
       }
       current_x = x;
