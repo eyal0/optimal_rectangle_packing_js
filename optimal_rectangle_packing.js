@@ -4,7 +4,7 @@
 
 'use strict';
 var ORP = {
-  Area: function(initial_value) {
+  RectangleGrid: function(initial_value) {
     var self = this;
     var vertical_cuts = [0];
     var horizontal_cuts = [0];
@@ -88,9 +88,10 @@ var ORP = {
       }
     }
 
-    // Returns the values in the part of the area specified as an
-    // object with keys.  The keys in the return value are the output
-    // of key_fn on each rectangle.  key_fn should return a string.
+    // Returns the values in the part of the RectangleGrid specified
+    // as an object with keys.  The keys in the return value are the
+    // output of key_fn on each rectangle.  key_fn should return a
+    // string.
     self.get_rectangle = function(x, y, width, height,
                                   key_fn = function(r) { return String(r); }) {
       if (!width || !height) {
@@ -164,14 +165,27 @@ var ORP = {
       return contents[x_index][y_index];
     }
 
-    // Visit every top-left corner of the cells in area.  The corners
-    // are visited from left-to-right, and top to bottom within each
-    // column.  fn should be a function of up to 3 variables, x and y
-    // and value, the coordinates of the top-left corner of the cell
-    // and the value there.  If fn returns true, end the traverse.
+    // Visit every top-left corner of the cells in rectangle_grid.
+    // The corners are visited from the top left to the bottom right,
+    // visiting a column from top to bottom before moving to the
+    // column to the right.  fn should be a function of up to 3
+    // variables, x and y and value, the coordinates of the top-left
+    // corner of the cell and the value there.  If fn returns true,
+    // end the traverse.
     self.traverse = function(fn) {
       for (var x_index = 0; x_index < vertical_cuts.length; x_index++) {
         for (var y_index = 0; y_index < horizontal_cuts.length; y_index++) {
+          if (fn(vertical_cuts[x_index], horizontal_cuts[y_index], contents[x_index][y_index])) {
+            return;
+          }
+        }
+      }
+    }
+
+    // Like traverse but visits in reverse order.
+    self.reverse_traverse = function(fn) {
+      for (var x_index = vertical_cuts.length-1; x_index >= 0; x_index--) {
+        for (var y_index = horizontal_cuts.length-1; y_index >= 0; y_index--) {
           if (fn(vertical_cuts[x_index], horizontal_cuts[y_index], contents[x_index][y_index])) {
             return;
           }
@@ -188,42 +202,44 @@ var ORP = {
     var EMPTY = {name:"."};  // name must not be a number, will conflict
     var BOUNDARY = {name:"X"};  // name must not be a number, will conflict
 
-    // Inserts all rectangles into an Area of given height from
-    // biggest to smallest.  Each rectangle is inserted at minimum x
-    // possible without crossing the height.  If there are multiple
-    // spots that are at minimum x, choose the one with minimum y.
-    // Returns the new Area.  We also keep track of the minimum height
-    // change that might make a difference in the packing.  That's
-    // based on the height of the overlap of each attempt to place
-    // with the lower boundary.
+    // Inserts all rectangles into an RectangleGrid of given height
+    // from biggest to smallest.  Each rectangle is inserted at
+    // minimum x possible without crossing the height.  If there are
+    // multiple spots that are at minimum x, choose the one with
+    // minimum y.  Returns the new RectangleGrid.  We also keep track
+    // of the minimum height change that might make a difference in
+    // the packing.  That's based on the height of the overlap of each
+    // attempt to place with the lower boundary.
     //
-    // Returns an object with area, placements, min_delta_height.
-    // placements is a map from name to {x,y} object.
-    // min_delta_height is the minimum height to add to the boundary
-    // to make a difference.
+    // Returns an object with rectangle_grid, placements,
+    // min_delta_height.  placements is a map from name to {x,y}
+    // object.  min_delta_height is the minimum height to add to the
+    // boundary to make a difference.
     var insert_all_rectangles = function(rectangles, boundary_height) {
-      var area = new ORP.Area(EMPTY);
+      var rectangle_grid = new ORP.RectangleGrid(EMPTY);
       if (rectangles.length == 0) {
-        return area;
+        return {"rectangle_grid": rectangle_grid,
+                "placements": {},
+                "min_delta_height": 0};
       }
       var sorted_rectangles = rectangles.slice(0)
           .sort(function (r1,r2) {
             return -(r1.height-r2.height);
           });
-      area.set_rectangle(0, boundary_height, -1, -1, BOUNDARY);
+      rectangle_grid.set_rectangle(0, boundary_height, -1, -1, BOUNDARY);
       for (var i = 0; i < sorted_rectangles.length; i++) {
         var rectangle = sorted_rectangles[i];
         var width = rectangle.width;
         var height = rectangle.height;
         var placements = {};
-        var min_delta_height;
-        area.traverse(function (x, y) {
-          var values_under_rectangle = area.get_rectangle(
+        var min_delta_height = null;
+        rectangle_grid.traverse(function (x, y) {
+          var values_under_rectangle = rectangle_grid.get_rectangle(
             x, y, width, height, function (r) { return r.name; });
           var all_empty = Object.keys(values_under_rectangle).length == 1 &&
               values_under_rectangle.hasOwnProperty(EMPTY.name);
           if (all_empty) {
-            area.set_rectangle(x, y, width, height, rectangle);
+            rectangle_grid.set_rectangle(x, y, width, height, rectangle);
             placements[rectangle.name] = {"x": x, "y": y};
             return true;  // End the traverse.
           } else {
@@ -239,24 +255,29 @@ var ORP = {
               // What increase in height would we have needed to make
               // this placement?
               var delta_height = x + height - boundary_height;
-              min_delta_height = delta_height === undefined ?
-                delta_height : Math.min(min_delta_height, delta_height);
+              if (min_delta_height === null || delta_height < min_delta_height) {
+                min_delta_height = delta_height;
+              }
             }
           }
         });
       }
-      return {"area": area,
+      return {"rectangle_grid": rectangle_grid,
               "placements": placements,
               "min_delta_height": min_delta_height};
     }
 
-    // Find the first column in the provided area that doesn't have
-    // any rectangles in it.  This is the leftmost boundary.
-    var find_first_empty_column = function(area) {
+    // Find the leftmost column in the provided rectangle_grid that
+    // doesn't have any rectangles in it.  This is the leftmost
+    // boundary.
+    var find_first_empty_column = function(rectangle_grid) {
       var current_x = null;
-      var is_column_empty;
+      var is_column_empty = false;
       var first_empty_column;
-      area.traverse(function (x, y ,value) {
+      // The shortest rectangle of the previous column.
+      var previous_shortest_rectangle = null;
+      var shortest_rectangle = null;  // The shortest rectangle of the column.
+      rectangle_grid.traverse(function (x, y ,value) {
         if (current_x != x) {
           // Starting a new column.
           if (is_column_empty) {
@@ -265,9 +286,14 @@ var ORP = {
             return true;  // End the traverse.
           }
           is_column_empty = true;  // Assume that we're empty.
+          previous_shortest_rectangle = shortest_rectangle;
+          shortest_rectangle = null; // Reset shortest rectangle.
         }
         if (value != EMPTY && value != BOUNDARY) {
           is_column_empty = false;  //We found a rectangle in this column.
+          if (shortest_rectangle === null || value.height < shortest_rectangle) {
+            shortest_rectangle = value.height;
+          }
         }
         current_x = x;
       });
@@ -281,18 +307,27 @@ var ORP = {
     }
 
     var max_rectangle_height = 0;
+    var max_rectangle_width = 0;
+    var total_area = 0;
     for (var i = 0; i < rectangles.length; i++) {
       max_rectangle_height = Math.max(max_rectangle_height, rectangles[i].height);
+      max_rectangle_width = Math.max(max_rectangle_width, rectangles[i].width);
+      total_area += rectangles[i].height * rectangles[i].width;
     }
-    var insert_result = insert_all_rectangles(rectangles, max_rectangle_height);
-    var area = insert_result.area;
+    var current_width;
+    var current_height = max_rectangle_height;
+
+    var insert_result = insert_all_rectangles(rectangles, current_height);
+    var rectangle_grid = insert_result.rectangle_grid;
     var placements = insert_result.placements;
     var min_delta_height = insert_result.min_delta_height;
-    console.log(area.grid_to_string(50,50,"  ", function(x) { return x.name; }));
-    console.log("Empty column at " + find_first_empty_column(area));
+    var current_width = find_first_empty_column(rectangle_grid);
+    console.log(rectangle_grid.grid_to_string(
+      50, 50, "  ", function(x) { return x.name; }));
+    console.log("Empty column at " + current_width);
   }
 }
-var x = new ORP.Area(0);
+var x = new ORP.RectangleGrid(0);
 var rectangles = [];
 for (var i = 1; i < 10; i++) {
   rectangles.push({name:i, height:i, width:i});
