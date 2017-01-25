@@ -1,3 +1,5 @@
+// -*- js-indent-level: 2; -*-
+
 //https://www.codeproject.com/Articles/210979/Fast-optimizing-rectangle-packing-algorithm-for-bu
 
 'use strict';
@@ -101,7 +103,6 @@ require("jsdom").env("", function(err, window) {
         return result;
       }
 
-
       // Get the value at x,y
       self.get_value = function(x, y) {
         var x_index = binary_search(vertical_cuts, x);
@@ -129,4 +130,3 @@ require("jsdom").env("", function(err, window) {
 });
 
 //console.log($);
-
