@@ -165,15 +165,15 @@ var ORP = {
       return contents[x_index][y_index];
     }
 
-    // Visit every top-left corner of the cells in area.  The
-    // corners are visited from left-to-right, and top to bottom
-    // within each column.  fn should be a function of two
-    // variables, x and y, the coordinates of the top-left corner of
-    // the cell.  If fn returns false, end the traverse.
+    // Visit every top-left corner of the cells in area.  The corners
+    // are visited from left-to-right, and top to bottom within each
+    // column.  fn should be a function of up to 3 variables, x and y
+    // and value, the coordinates of the top-left corner of the cell
+    // and the value there.  If fn returns true, end the traverse.
     self.traverse = function(fn) {
       for (var x_index = 0; x_index < vertical_cuts.length; x_index++) {
         for (var y_index = 0; y_index < horizontal_cuts.length; y_index++) {
-          if (!fn(vertical_cuts[x_index], horizontal_cuts[y_index])) {
+          if (fn(vertical_cuts[x_index], horizontal_cuts[y_index], contents[x_index][y_index])) {
             return;
           }
         }
@@ -205,11 +205,38 @@ var ORP = {
       area.traverse(function (x, y) {
         if (area.get_rectangle(x, y, width, height) == empty) {
           area.set_rectangle(x, y, width, height, rectangle);
-          return false;
+          return true;  // End the traverse.
         }
-        return true;
       });
     }
+    // The current width is the first column that has no rectangles
+    // in it.
+    var current_x = null;
+    var is_column_empty;
+    var first_empty_column;
+    area.traverse(function (x, y ,value) {
+      if (current_x != x) {
+        // Starting a new column.
+        if (is_column_empty) {
+          // Previous column was empty, that's the best.
+          first_empty_column = current_x;
+          return true;  // End the traverse.
+        }
+        is_column_empty = true;  // Assume that we're empty.
+      }
+      if (value != empty && value != boundary) {
+        is_column_empty = false;  //We found a rectangle in this column.
+      }
+      current_x = x;
+    });
+    if (!first_empty_column && is_column_empty) {
+      first_empty_column = current_x;
+    }
+    if (!first_empty_column) {
+      console.error("Found no empty columns.");
+    }
+    console.log("Empty column at " + first_empty_column);
+    console.log(area.grid_to_string(50,50,"  ", function(x) { return x.name; }));
   }
 }
 var x = new ORP.Area(0);
