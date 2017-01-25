@@ -11,7 +11,7 @@ require("jsdom").env("", function(err, window) {
 
   var $ = require("jquery")(window);
   var ORP = {
-    Area: function (initial_value) {
+    Area: function(initial_value) {
       var self = this;
       var vertical_cuts = [0];
       var horizontal_cuts = [0];
@@ -70,23 +70,67 @@ require("jsdom").env("", function(err, window) {
         return -cut_location-1;
       }
 
-      // Set all spots in a rectangle to a new value.
+      // Set all spots in a rectangle to a new value.  If the width or
+      // height are -1, that indicates a rectangle with no end.
       self.set_rectangle = function(x, y, width, height, value) {
         if (!width || !height) {
           return;
         }
-        var start_x = cut_vertically(x);
-        var end_x = cut_vertically(x+width);
-        var start_y = cut_horizontally(y);
-        var end_y = cut_horizontally(y+height);
-        for (var x_index = start_x; x_index < end_x; x_index++) {
-          for (var y_index = start_y; y_index < end_y; y_index++) {
+        var x_start = cut_vertically(x);
+        if (width > 0) {
+          var x_end = cut_vertically(x+width);
+        } else {
+          var x_end = vertical_cuts.length;
+        }
+        var y_start = cut_horizontally(y);
+        if (height > 0) {
+          var y_end = cut_horizontally(y+height);
+        } else {
+          var y_end = horizontal_cuts.length;
+        }
+        for (var x_index = x_start; x_index < x_end; x_index++) {
+          for (var y_index = y_start; y_index < y_end; y_index++) {
             contents[x_index][y_index] = value;
           }
         }
       }
 
-      self.to_string = function() {
+      // Returns the value in the part of the area specified.  If
+      // there is more than one value or the rectange has zero area,
+      // returns null.
+      self.get_rectangle = function(x, y, width, height) {
+        if (!width || !height) {
+          return null;
+        }
+
+        var x_start = binary_search(vertical_cuts, x);
+        if (x_start < 0) {
+          x_start = -x_start-2;
+        }
+        var x_end = binary_search(vertical_cuts, x+width);
+        if (x_end < 0) {
+          x_end = -x_end-2;
+        }
+        var y_start = binary_search(vertical_cuts, x);
+        if (y_start < 0) {
+          y_start = -y_start-2;
+        }
+        var y_end = binary_search(vertical_cuts, x+width);
+        if (y_end < 0) {
+          y_end = -y_end-2;
+        }
+        var value = contents[x_start][y_start];
+        for (var x_index = x_start; x_index < x_end; x_index++) {
+          for (var y_index = y_start; y_index < y_end; y_index++) {
+            if (contents[x_index][y_index] != value) {
+              return null;
+            }
+          }
+        }
+        return value;
+      }
+
+      self.cuts_to_string = function() {
         var width = "     ";
         var result = width;
         for (var i=0; i < vertical_cuts.length; i++) {
@@ -103,7 +147,19 @@ require("jsdom").env("", function(err, window) {
         return result;
       }
 
-      // Get the value at x,y
+      self.grid_to_string = function(x, y, padding) {
+        var result = "";
+        for (var j=0; j < y; j++) {
+          var s = "";
+          for (var i=0; i < x; i++) {
+            result += (padding + self.get_value(i, j)).slice(-padding.length);
+          }
+          result += "\n";
+        }
+        return result;
+      }
+
+      // Get the value at x,y.
       self.get_value = function(x, y) {
         var x_index = binary_search(vertical_cuts, x);
         if (x_index < 0) {
@@ -115,9 +171,58 @@ require("jsdom").env("", function(err, window) {
         }
         return contents[x_index][y_index];
       }
+
+      // Visit every top-left corner of the cells in area.  The
+      // corners are visited from left-to-right, and top to bottom
+      // within each column.  fn should be a function of two
+      // variables, x and y, the coordinates of the top-left corner of
+      // the cell.  If fn returns false, end the traverse.
+      self.traverse = function(fn) {
+        for (var x_index = 0; x_index < vertical_cuts.length; x_index++) {
+          for (var y_index = 0; y_index < horizontal_cuts.length; y_index++) {
+            if (!fn(vertical_cuts[x_index], horizontal_cuts[x_index])) {
+              return;
+            }
+          }
+        }
+      }
+    },
+
+    /* Pack rectangles.  The input is an array of rectangles.  Each
+     * rectangle is an object with height and width.  The result is a
+     * map from input rectangle to location of top-left corner in an
+     * optimal enclosing rectangle. */
+    pack: function(rectangles) {
+      if (rectangles.length == 0) {
+        return {};
+      }
+      var sorted_rectangles = rectangles.slice(0)
+          .sort(function (r1,r2) {
+            return -(r1.height-r2.height);
+          });
+      var current_height = sorted_rectangles[0].height;
+      var area = new ORP.Area(-1);  // -1 indicates empty
+      // -2 means that it's the boundary of the enclosing box
+      area.set_rectangle(0, current_height, -1, -1, -2);
+      for (var i = 0; i < sorted_rectangles.length; i++) {
+        var rectangle = sorted_rectangles[i];
+        var width = rectangle.width;
+        var height = rectangle.height;
+        area.traverse(function (x, y) {
+          if (area.get_rectangle(x, y, width, height) == -1) {
+            area.set_rectangle(x, y, width, height, i);
+            return false;
+          }
+          return true;
+        });
+      }
+      console.log(area.grid_to_string(10,10,"  "));
     }
   }
   var x = new ORP.Area(0);
+  ORP.pack([{height:1, width:1},
+            {height:2, width:2},
+           ]);
 /*  x.set_rectangle(0,3,1,4,7);
   x.set_rectangle(0,3,1,5,9);
   x.set_rectangle(0,4,5,1,4);
