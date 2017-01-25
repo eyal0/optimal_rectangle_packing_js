@@ -218,39 +218,43 @@ var ORP = {
       return area;
     }
 
+    // Find the first column in the provided area that doesn't have
+    // any rectangles in it.  This is the leftmost boundary.
+    var find_first_empty_column = function(area) {
+      var current_x = null;
+      var is_column_empty;
+      var first_empty_column;
+      area.traverse(function (x, y ,value) {
+        if (current_x != x) {
+          // Starting a new column.
+          if (is_column_empty) {
+            // Previous column was empty, that's the best.
+            first_empty_column = current_x;
+            return true;  // End the traverse.
+          }
+          is_column_empty = true;  // Assume that we're empty.
+        }
+        if (value != EMPTY && value != BOUNDARY) {
+          is_column_empty = false;  //We found a rectangle in this column.
+        }
+        current_x = x;
+      });
+      if (!first_empty_column && is_column_empty) {
+        first_empty_column = current_x;
+      }
+      if (!first_empty_column) {
+        console.error("Found no empty columns.");
+      }
+      return first_empty_column;
+    }
+
     var max_rectangle_height = 0;
     for (var i = 0; i < rectangles.length; i++) {
       max_rectangle_height = Math.max(max_rectangle_height, rectangles[i].height);
     }
     var area = insert_all_rectangles(rectangles, max_rectangle_height);
-    // The current width is the first column that has no rectangles
-    // in it.
-    var current_x = null;
-    var is_column_empty;
-    var first_empty_column;
-    area.traverse(function (x, y ,value) {
-      if (current_x != x) {
-        // Starting a new column.
-        if (is_column_empty) {
-          // Previous column was empty, that's the best.
-          first_empty_column = current_x;
-          return true;  // End the traverse.
-        }
-        is_column_empty = true;  // Assume that we're empty.
-      }
-      if (value != EMPTY && value != BOUNDARY) {
-        is_column_empty = false;  //We found a rectangle in this column.
-      }
-      current_x = x;
-    });
-    if (!first_empty_column && is_column_empty) {
-      first_empty_column = current_x;
-    }
-    if (!first_empty_column) {
-      console.error("Found no empty columns.");
-    }
-    console.log("Empty column at " + first_empty_column);
     console.log(area.grid_to_string(50,50,"  ", function(x) { return x.name; }));
+    console.log("Empty column at " + find_first_empty_column(area));
   }
 }
 var x = new ORP.Area(0);
