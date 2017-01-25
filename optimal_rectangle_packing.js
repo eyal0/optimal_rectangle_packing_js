@@ -77,13 +77,11 @@ require("jsdom").env("", function(err, window) {
         var end_x = cut_vertically(x+width);
         var start_y = cut_horizontally(y);
         var end_y = cut_horizontally(y+height);
-        console.log(contents);
         for (var x_index = start_x; x_index < end_x; x_index++) {
           for (var y_index = start_y; y_index < end_y; y_index++) {
             contents[x_index][y_index] = value;
           }
         }
-        console.log(contents);
       }
 
       self.to_string = function() {
@@ -119,18 +117,15 @@ require("jsdom").env("", function(err, window) {
     }
   }
   var x = new ORP.Area(0);
-  console.log(x.to_string());
-  x.set_rectangle(0,3,1,4,7);
+/*  x.set_rectangle(0,3,1,4,7);
   x.set_rectangle(0,3,1,5,9);
   x.set_rectangle(0,4,5,1,4);
-  console.log(x.to_string());
   for (var j=0; j < 10; j++) {
     var s = "";
     for (var i=0; i < 10; i++) {
       s += x.get_value(i, j);
     }
-    console.log(s);
-  }
+  }*/
 });
 
 //console.log($);
