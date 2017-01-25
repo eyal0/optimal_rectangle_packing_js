@@ -284,7 +284,10 @@ var ORP = {
     for (var i = 0; i < rectangles.length; i++) {
       max_rectangle_height = Math.max(max_rectangle_height, rectangles[i].height);
     }
-    var area = insert_all_rectangles(rectangles, max_rectangle_height).area;
+    var insert_result = insert_all_rectangles(rectangles, max_rectangle_height);
+    var area = insert_result.area;
+    var placements = insert_results.placements;
+    var min_delta_height = insert_results.min_delta_height;
     console.log(area.grid_to_string(50,50,"  ", function(x) { return x.name; }));
     console.log("Empty column at " + find_first_empty_column(area));
   }
