@@ -145,7 +145,7 @@ var ORP = {
       for (var j=0; j < y; j++) {
         var s = "";
         for (var i=0; i < x; i++) {
-          result += (padding + self.get_value(i, j)).slice(-padding.length);
+          result += (padding + to_string_fn(self.get_value(i, j))).slice(-padding.length);
         }
         result += "\n";
       }
@@ -194,28 +194,30 @@ var ORP = {
           return -(r1.height-r2.height);
         });
     var current_height = sorted_rectangles[0].height;
-    var area = new ORP.Area(-1);  // -1 indicates empty
+    var empty = {name:"."};
+    var boundary = {name:"X"};
+    var area = new ORP.Area(empty);  // -1 indicates empty
     // -2 means that it's the boundary of the enclosing box
-    area.set_rectangle(0, current_height, -1, -1, -2);
+    area.set_rectangle(0, current_height, -1, -1, boundary);
     for (var i = 0; i < sorted_rectangles.length; i++) {
       var rectangle = sorted_rectangles[i];
       var width = rectangle.width;
       var height = rectangle.height;
       area.traverse(function (x, y) {
-        if (area.get_rectangle(x, y, width, height) == -1) {
+        if (area.get_rectangle(x, y, width, height) == empty) {
           area.set_rectangle(x, y, width, height, rectangle);
           return false;
         }
         return true;
       });
     }
-    console.log(area.grid_to_string(10,10,"  "));
+    console.log(area.grid_to_string(10,10,"  ", function(x) { return x.name; }));
   }
 }
 var x = new ORP.Area(0);
 while(1) {
-  ORP.pack([{height:1, width:1},
-            {height:2, width:2},
+  ORP.pack([{name:1, height:1, width:1},
+            {name:2, height:2, width:2},
            ]);
 }
 /*  x.set_rectangle(0,3,1,4,7);
