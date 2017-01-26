@@ -194,6 +194,80 @@ var ORP = {
     }
   },
 
+  // Generates all unique permutations of the inputs.
+  // Each input can have multiple forms that are considered dissimilar.
+  // There must be a method to compare two forms for <=>.
+  // form_to_string must return a string that maps to forms and has no commas.
+  Permutations: function(inputs, get_forms_fn, form_to_string_fn) {
+    var self = this;
+    // Traverse over all the possible combinations of forms.
+    var input_forms = [];
+    for (var i = 0; i < inputs.length; i++) {
+      input_forms.push(get_forms_fn(inputs[i]));
+    }
+
+    // fn should be a function that will get a function that returns
+    // each of the forms in the next order.
+    self.permute_forms = function(fn) {
+      var form_positions = [-1];
+      for (var i = 1; i < input_forms.length; i++) {
+        form_positions.push(0);
+      }
+      do {
+        // Increment the form_positions.
+        for (var i = 0; i < input_forms.length; i++) {
+          form_positions[i]++;
+          if (form_positions[i] < input_forms[i].length) {
+            //console.log("new perm is: " + JSON.stringify(form_positions));
+            // New permutation.
+            var result = (function(input_forms, form_positions) {
+              var current = -1;
+
+              return function() {
+                current++;
+                //console.log("new current is: " + current);
+                if (current >= input_forms.length) {
+                  return null;
+                } else {
+                  //console.log("new current is: " + current);
+                  return {input: input_forms[current],
+                          form: input_forms[current][form_positions[current]]}
+                }
+            }
+            })(input_forms, form_positions);
+            fn(result);
+            break;
+          } else {
+            form_positions[i]=0;
+          }
+        }
+      } while (i < input_forms.length);
+    };
+
+    self.unique_form_permutations = function(fn) {
+      var unique_forms = {};
+      self.permute_forms(function (next_fn) {
+        var form_strings = [];
+        var next;
+        var forms = [];
+        while((next = next_fn()) !== null) {
+          next['form_string'] = form_to_string_fn(next.form);
+          forms.push(next);
+        }
+        forms.sort(function(a,b) {
+          return a.form_string < b.form_string ? -1 : a.form_string > b.form_string ? 1 : 0
+        });
+        var form_string = forms.map(function (x) { return x.form_string; }).join(",");
+        //console.log(forms);
+        //console.log(form_string);
+        if (!unique_forms.hasOwnProperty(form_string)) {
+          unique_forms[form_string] = true;
+          fn(forms);
+        }
+      });
+    };
+  },
+
   /* Pack rectangles.  The input is an array of rectangles.  Each
    * rectangle is an object with height and width.  The result is a
    * map from input rectangle to location of top-left corner in an
@@ -357,7 +431,18 @@ var ORP = {
     } while (current_width > max_rectangle_width);
   }
 }
-var x = new ORP.RectangleGrid(0);
+var perm = new ORP.Permutations(
+    [
+      ['a','b','c'],
+      ['b','c','d']],
+    function (i) { return i; },
+    function (f) { return f; }
+    );
+perm.unique_form_permutations(function (forms) {
+  console.log(forms);
+});
+return;
+
 var rectangles = [];
 for (var i = 1; i < 13; i++) {
   var new_name;
@@ -372,14 +457,3 @@ while(1) {
   console.log("Starting over");
   ORP.pack(rectangles);
 }
-/*  x.set_rectangle(0,3,1,4,7);
-    x.set_rectangle(0,3,1,5,9);
-    x.set_rectangle(0,4,5,1,4);
-    for (var j=0; j < 10; j++) {
-    var s = "";
-    for (var i=0; i < 10; i++) {
-    s += x.get_value(i, j);
-    }
-    }*/
-
-//console.log($);
