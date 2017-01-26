@@ -213,9 +213,12 @@ var ORP = {
       for (var i = 1; i < input_forms.length; i++) {
         form_positions.push(0);
       }
+      //console.log(input_forms.length);
       do {
         // Increment the form_positions.
         for (var i = 0; i < input_forms.length; i++) {
+          //console.log(form_positions);
+          //console.log(input_forms);
           form_positions[i]++;
           if (form_positions[i] < input_forms[i].length) {
             //console.log("new perm is: " + JSON.stringify(form_positions));
@@ -290,20 +293,17 @@ var ORP = {
     // object.  min_delta_height is the minimum height to add to the
     // boundary to make a difference.
     var insert_all_rectangles = function(rectangles, boundary_height) {
+      //console.log(rectangles);
       var rectangle_grid = new ORP.RectangleGrid(EMPTY);
       if (rectangles.length == 0) {
         return {"rectangle_grid": rectangle_grid,
                 "placements": {},
                 "min_delta_height": 0};
       }
-      var sorted_rectangles = rectangles.slice(0)
-          .sort(function (r1,r2) {
-            return -(r1.height-r2.height);
-          });
       rectangle_grid.set_rectangle(0, boundary_height, -1, -1, BOUNDARY);
       var min_delta_height = null;
-      for (var i = 0; i < sorted_rectangles.length; i++) {
-        var rectangle = sorted_rectangles[i];
+      for (var i = 0; i < rectangles.length; i++) {
+        var rectangle = rectangles[i];
         var width = rectangle.width;
         var height = rectangle.height;
         var placements = {};
@@ -394,14 +394,32 @@ var ORP = {
     var current_height = max_rectangle_height;
 
     do {
-      var insert_result = insert_all_rectangles(rectangles, current_height);
-      var rectangle_grid = insert_result.rectangle_grid;
-      var placements = insert_result.placements;
-      var min_delta_height = insert_result.min_delta_height;
+      var perm = new ORP.Permutations(
+          rectangles,
+          function(i) { return [i];},
+          function(r) { return r.height + "x" + r.width; });
+      var best_insert_result = null;
+      perm.unique_form_permutations(function (forms) {
+        console.log(forms);
+        var insert_result = insert_all_rectangles(forms.map(function (x) { return x.form;}), current_height);
+        var rectangle_grid = insert_result.rectangle_grid;
+        var placements = insert_result.placements;
+        var min_delta_height = insert_result.min_delta_height;
 
-      var find_result = find_leftmost_empty_column(rectangle_grid);
-      var leftmost_empty_column = find_result.leftmost_empty_column;
-      var rightmost_shortest_rectangle = find_result.rightmost_shortest_rectangle;
+        var find_result = find_leftmost_empty_column(rectangle_grid);
+        insert_result.leftmost_empty_column = find_result.leftmost_empty_column;
+        insert_result.rightmost_shortest_rectangle = find_result.rightmost_shortest_rectangle;
+        if (best_insert_result === null || insert_result.leftmost_empty_column < best_insert_result.left_most_empty_column) {
+          best_insert_result = insert_result;
+        }
+      });
+      //console.log(best_insert_result);
+      var rectangle_grid = best_insert_result.rectangle_grid;
+      var placements = best_insert_result.placements;
+      var min_delta_height = best_insert_result.min_delta_height;
+
+      var leftmost_empty_column = best_insert_result.left_most_empty_column;
+      var rightmost_shortest_rectangle = best_insert_result.rightmost_shortest_rectangle;
 
       // Add another boundary just for the viewing.
       rectangle_grid.set_rectangle(leftmost_empty_column, 0, -1, -1, BOUNDARY);
@@ -431,17 +449,7 @@ var ORP = {
     } while (current_width > max_rectangle_width);
   }
 }
-var perm = new ORP.Permutations(
-    [
-      ['a','b','c'],
-      ['b','c','d']],
-    function (i) { return i; },
-    function (f) { return f; }
-    );
-perm.unique_form_permutations(function (forms) {
-  console.log(forms);
-});
-return;
+
 
 var rectangles = [];
 for (var i = 1; i < 13; i++) {
@@ -453,7 +461,13 @@ for (var i = 1; i < 13; i++) {
   }
   rectangles.push({name:new_name, height:i, width:i+1});
 }
-while(1) {
-  console.log("Starting over");
-  ORP.pack(rectangles);
-}
+var perm = new ORP.Permutations(
+    rectangles,
+    function(i) { return [i];},
+    function(r) { return r.height + "x" + r.width; });
+perm.unique_form_permutations(function (forms) {
+  //console.log(forms);
+});
+//return;
+console.log("Starting over");
+ORP.pack(rectangles);
