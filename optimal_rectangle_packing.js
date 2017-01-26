@@ -279,6 +279,24 @@ var ORP = {
     var EMPTY = {name:"."};  // name must not be a number, will conflict
     var BOUNDARY = {name:" "};  // name must not be a number, will conflict
 
+    // Outputs all permutations of the input, without repeats.
+    var permutations = function(input, fn, index = 0) {
+      if (index == input.length) {
+        fn(input);
+      } else {
+        permutations(input, fn, index+1);
+        for (var i = index+1; i < input.length; i++) {
+          var temp = input[index];
+          input[index] = input[i];
+          input[i] = temp;
+          permutations(input, fn, index+1);
+          temp = input[index];
+          input[index] = input[i];
+          input[i] = temp;
+        }
+      }
+    }
+
     // Inserts all rectangles into an RectangleGrid of given height
     // from biggest to smallest.  Each rectangle is inserted at
     // minimum x possible without crossing the height.  If there are
@@ -401,24 +419,31 @@ var ORP = {
       var best_insert_result = null;
       perm.unique_form_permutations(function (forms) {
         console.log(forms);
-        var insert_result = insert_all_rectangles(forms.map(function (x) { return x.form;}), current_height);
-        var rectangle_grid = insert_result.rectangle_grid;
-        var placements = insert_result.placements;
-        var min_delta_height = insert_result.min_delta_height;
+        permutations(forms, function(new_forms) {
+          var insert_result = insert_all_rectangles(new_forms.map(function (x) { return x.form;}), current_height);
+          var rectangle_grid = insert_result.rectangle_grid;
+          var placements = insert_result.placements;
+          var min_delta_height = insert_result.min_delta_height;
 
-        var find_result = find_leftmost_empty_column(rectangle_grid);
-        insert_result.leftmost_empty_column = find_result.leftmost_empty_column;
-        insert_result.rightmost_shortest_rectangle = find_result.rightmost_shortest_rectangle;
-        if (best_insert_result === null || insert_result.leftmost_empty_column < best_insert_result.left_most_empty_column) {
-          best_insert_result = insert_result;
-        }
+          var find_result = find_leftmost_empty_column(rectangle_grid);
+          insert_result.leftmost_empty_column = find_result.leftmost_empty_column;
+          insert_result.rightmost_shortest_rectangle = find_result.rightmost_shortest_rectangle;
+          /*console.log("tried " + new_forms.map(function (x) { return x.form.width;}));
+          console.log(rectangle_grid.grid_to_string(
+              insert_result.leftmost_empty_column, current_height, " ", function(x) { return x.name; }));
+          console.log("size is " + leftmost_empty_column + "," + current_height);*/
+
+          if (best_insert_result === null || insert_result.leftmost_empty_column < best_insert_result.leftmost_empty_column) {
+            best_insert_result = insert_result;
+          }
+        });
       });
       //console.log(best_insert_result);
       var rectangle_grid = best_insert_result.rectangle_grid;
       var placements = best_insert_result.placements;
       var min_delta_height = best_insert_result.min_delta_height;
 
-      var leftmost_empty_column = best_insert_result.left_most_empty_column;
+      var leftmost_empty_column = best_insert_result.leftmost_empty_column;
       var rightmost_shortest_rectangle = best_insert_result.rightmost_shortest_rectangle;
 
       // Add another boundary just for the viewing.
@@ -452,14 +477,14 @@ var ORP = {
 
 
 var rectangles = [];
-for (var i = 1; i < 13; i++) {
+for (var i = 1; i < 10; i++) {
   var new_name;
   if (i < 10) {
     new_name = String(i);
   } else {
     new_name = String.fromCharCode("a".charCodeAt(0)+i-10);
   }
-  rectangles.push({name:new_name, height:i, width:i+1});
+  rectangles.push({name:new_name, height:i, width:i});
 }
 var perm = new ORP.Permutations(
     rectangles,
